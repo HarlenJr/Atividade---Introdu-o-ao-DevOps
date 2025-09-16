@@ -1,0 +1,161 @@
+name: 🚀 Deploy Automatizado
+
+# Triggers do workflow
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# Configurações do workflow
+env:
+  PROJECT_NAME: "meu-projeto-automatizado"
+
+jobs:
+  # Job de verificação e testes
+  validate:
+    name: 🔍 Validação e Testes
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Clonar repositório
+      uses: actions/checkout@v4
+      
+    - name: 📊 Informações do commit
+      run: |
+        echo "🔧 Commit SHA: ${{ github.sha }}"
+        echo "👤 Autor: ${{ github.actor }}"
+        echo "📝 Mensagem: ${{ github.event.head_commit.message }}"
+        echo "🌿 Branch: ${{ github.ref }}"
+    
+    - name: 🔍 Verificar estrutura do projeto
+      run: |
+        echo "📁 Verificando estrutura de arquivos..."
+        ls -la
+        if [ -f "index.html" ]; then
+          echo "✅ index.html encontrado"
+        else
+          echo "❌ index.html não encontrado"
+          exit 1
+        fi
+        
+        if [ -f "style.css" ]; then
+          echo "✅ style.css encontrado"
+        else
+          echo "⚠️ style.css não encontrado (opcional)"
+        fi
+    
+    - name: 🧪 Validar HTML
+      run: |
+        echo "🔍 Validando sintaxe HTML..."
+        # Verificação básica de HTML (pode ser expandida)
+        if grep -q "</html>" index.html && grep -q "<!DOCTYPE" index.html; then
+          echo "✅ HTML válido"
+        else
+          echo "❌ Estrutura HTML inválida"
+          exit 1
+        fi
+    
+    - name: 📏 Estatísticas do projeto
+      run: |
+        echo "📊 Estatísticas do projeto:"
+        echo "📄 Arquivos HTML: $(find . -name "*.html" | wc -l)"
+        echo "🎨 Arquivos CSS: $(find . -name "*.css" | wc -l)"
+        echo "⚡ Arquivos JS: $(find . -name "*.js" | wc -l)"
+        echo "📝 Total de linhas: $(find . -name "*.html" -o -name "*.css" -o -name "*.js" | xargs wc -l | tail -1)"
+
+  # Job principal de deploy
+  deploy:
+    name: 🚀 Deploy para Produção
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 📥 Clonar repositório
+      uses: actions/checkout@v4
+      
+    - name: 🔧 Setup Node.js (opcional para builds mais complexas)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: 📦 Preparar artefatos
+      run: |
+        echo "📦 Preparando arquivos para deploy..."
+        mkdir -p dist
+        cp *.html dist/ 2>/dev/null || true
+        cp *.css dist/ 2>/dev/null || true
+        cp *.js dist/ 2>/dev/null || true
+        
+        echo "📄 Criando arquivo de informações do build..."
+        cat > dist/build-info.json << EOF
+        {
+          "buildTime": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+          "commitSha": "${{ github.sha }}",
+          "branch": "${{ github.ref_name }}",
+          "author": "${{ github.actor }}",
+          "repository": "${{ github.repository }}",
+          "buildNumber": "${{ github.run_number }}"
+        }
+        EOF
+        
+        echo "📋 Conteúdo do diretório de deploy:"
+        ls -la dist/
+    
+    - name: 🎯 Simular Deploy
+      run: |
+        echo "🚀 Iniciando processo de deploy..."
+        sleep 2
+        
+        echo "📡 Conectando com servidor de produção..."
+        sleep 1
+        
+        echo "📤 Enviando arquivos..."
+        sleep 2
+        
+        echo "🔄 Atualizando configurações..."
+        sleep 1
+        
+        echo "✅ Deploy concluído com sucesso!"
+        echo ""
+        echo "🎉 Aplicação disponível em: https://${{ github.actor }}.github.io/${{ github.event.repository.name }}"
+    
+    - name: 📊 Relatório Final
+      run: |
+        echo "📈 RELATÓRIO DE DEPLOY"
+        echo "====================="
+        echo "✅ Status: Sucesso"
+        echo "⏰ Tempo: $(date '+%d/%m/%Y às %H:%M:%S')"
+        echo "🔢 Build: #${{ github.run_number }}"
+        echo "📝 Commit: ${{ github.sha }}"
+        echo "👤 Autor: ${{ github.actor }}"
+        echo "🌿 Branch: ${{ github.ref_name }}"
+        echo "====================="
+        echo ""
+        echo "🎊 Deploy realizado com sucesso! 🚀"
+    
+    - name: 💾 Upload dos artefatos
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-files
+        path: dist/
+        retention-days: 30
+
+  # Job de notificação (opcional)
+  notify:
+    name: 📢 Notificação
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+    
+    steps:
+    - name: 📬 Status do Deploy
+      run: |
+        if [ "${{ needs.deploy.result }}" == "success" ]; then
+          echo "✅ Deploy realizado com sucesso!"
+          echo "🎉 A aplicação está no ar!"
+        else
+          echo "❌ Falha no deploy"
+          echo "🔍 Verifique os logs para mais detalhes"
+        fi
